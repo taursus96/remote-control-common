@@ -14,7 +14,7 @@ public abstract class EventDataSender {
         this.transporter.send(bytes);
         return this;
     }
-    
+
     protected EventDataSender sendType(byte type) {
         IEventData data = new EventData();
         data.setType(type);

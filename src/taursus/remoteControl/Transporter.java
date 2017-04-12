@@ -29,18 +29,18 @@ public abstract class Transporter implements ITransporter, Runnable {
     protected List<IOnPackageReceived> onPackageReceivedListeners = Collections.synchronizedList(new ArrayList<IOnPackageReceived>());
 
     protected List<byte[]> packagesToSend = Collections.synchronizedList(new ArrayList<byte[]>());
-    
+
     protected ILogger logger;
 
     public Transporter(ILogger logger) {
-    	this.logger = logger;
+        this.logger = logger;
     }
 
     public void close() {
         disconnect();
         this.isListening = false;
     }
-    
+
     public abstract void run();
 
     public Transporter registerOnConnectedListener(IOnConnected onConnected) {
@@ -64,7 +64,7 @@ public abstract class Transporter implements ITransporter, Runnable {
         this.onDisconnectedListeners.remove(onDisconnected);
         return this;
     }
-    
+
     public Transporter registerOnPackageReceivedListener(IOnPackageReceived onPackageReceived) {
         this.onPackageReceivedListeners.remove(onPackageReceived);
         this.onPackageReceivedListeners.add(onPackageReceived);
@@ -75,7 +75,7 @@ public abstract class Transporter implements ITransporter, Runnable {
         this.onPackageReceivedListeners.remove(onPackageReceived);
         return this;
     }
-    
+
     public Transporter registerOnConnectionFailedListener(IOnConnectionFailed onConnectionFailed) {
         this.onConnectionFailedListeners.remove(onConnectionFailed);
         this.onConnectionFailedListeners.add(onConnectionFailed);
@@ -92,59 +92,59 @@ public abstract class Transporter implements ITransporter, Runnable {
         this.thread.start();
         return this;
     }
-    
+
     public synchronized Transporter send(byte[] data) {
         this.packagesToSend.add(data);
         return this;
     }
-    
+
     protected void onConnectionFailed() {
-    	this.logger.log("Transporter", "connection failed");
-    	
-    	for(IOnConnectionFailed x : this.onConnectionFailedListeners) {
-    		x.onConnectionFailed();
-    	}
+        this.logger.log("Transporter", "connection failed");
+
+        for (IOnConnectionFailed x : this.onConnectionFailedListeners) {
+            x.onConnectionFailed();
+        }
     }
 
     protected void onConnected() {
-    	this.logger.log("Transporter", "connected");
-    	
-    	this.isListening = true;
-    	this.isConnected = true;
-    	this.keepAliveTo = System.currentTimeMillis() + this.keepAliveTime;
-    	
-    	for(IOnConnected x : this.onConnectedListeners) {
-    		x.onConnected();
-    	}
-    	
-    	listen();
+        this.logger.log("Transporter", "connected");
+
+        this.isListening = true;
+        this.isConnected = true;
+        this.keepAliveTo = System.currentTimeMillis() + this.keepAliveTime;
+
+        for (IOnConnected x : this.onConnectedListeners) {
+            x.onConnected();
+        }
+
+        listen();
     }
 
     protected void onDisconnected() {
-    	this.logger.log("Transporter", "disconnected");
-    	
-    	this.isListening = false;
-    	this.isConnected = false;
-    	
-    	for(IOnDisconnected x : this.onDisconnectedListeners) {
-    		x.onDisconnected();
-    	}
+        this.logger.log("Transporter", "disconnected");
+
+        this.isListening = false;
+        this.isConnected = false;
+
+        for (IOnDisconnected x : this.onDisconnectedListeners) {
+            x.onDisconnected();
+        }
     }
-    
+
     protected void onPackageSent(byte[] data) {
-    	
+
     }
-    
+
     protected void onPackageReceived(byte[] data) {
-    	this.keepAliveTo = System.currentTimeMillis() + this.keepAliveTime;
-    	for(IOnPackageReceived x : this.onPackageReceivedListeners) {
-    		x.onPackageReceived(data);
-    	}
+        this.keepAliveTo = System.currentTimeMillis() + this.keepAliveTime;
+        for (IOnPackageReceived x : this.onPackageReceivedListeners) {
+            x.onPackageReceived(data);
+        }
     }
 
     protected void disconnect() {
-        if(this.isConnected) {
-        	try {
+        if (this.isConnected) {
+            try {
                 this.output.close();
                 this.input.close();
             } catch (IOException e) {
@@ -159,8 +159,8 @@ public abstract class Transporter implements ITransporter, Runnable {
     }
 
     protected void listen() {
-        while(this.isListening) {
-            if(!checkIfShouldKeepAlive()) {
+        while (this.isListening) {
+            if (!checkIfShouldKeepAlive()) {
                 disconnect();
                 break;
             }
@@ -168,28 +168,28 @@ public abstract class Transporter implements ITransporter, Runnable {
             sendKeepAliveIfNeeded();
             processIncomingData();
             sendBufferedPackages();
-            
+
             try {
-				Thread.sleep(1);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
+                Thread.sleep(1);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
     }
 
     protected void sendBufferedPackages() {
         synchronized (this.packagesToSend) {
-            if(this.packagesToSend.size() > 0) {
+            if (this.packagesToSend.size() > 0) {
                 byte[] data = this.packagesToSend.get(0);
                 this.packagesToSend.remove(0);
                 sendPackage(data);
             }
         }
     }
-    
+
     protected void sendPackage(byte[] data) {
-    	ByteBuffer buffer = ByteBuffer.allocate(data.length + Short.BYTES);
-        buffer.putShort((short)data.length);
+        ByteBuffer buffer = ByteBuffer.allocate(data.length + Short.BYTES);
+        buffer.putShort((short) data.length);
         buffer.put(data);
 
         try {
@@ -197,7 +197,7 @@ public abstract class Transporter implements ITransporter, Runnable {
             this.output.flush();
             onPackageSent(data);
         } catch (IOException e) {
-        	disconnect();
+            disconnect();
             e.printStackTrace();
         }
     }
@@ -205,67 +205,66 @@ public abstract class Transporter implements ITransporter, Runnable {
     protected void processIncomingData() {
         try {
             int availableBytes = this.input.available();
-            if(availableBytes > Short.BYTES) {
-            	this.input.mark(100);
-            	short packageSize = getPackageSize();
-            	
-            	if(packageSize <= this.input.available()) {
-            		byte[] packageData = getPackageData(packageSize);
-            		
-            		if(packageData != null) {
-            			onPackageReceived(packageData);
-            		}
-            	}
-            	else { //Whole package isn't available yet
-            		this.input.reset();
-            	}
+            if (availableBytes > Short.BYTES) {
+                this.input.mark(100);
+                short packageSize = getPackageSize();
+
+                if (packageSize <= this.input.available()) {
+                    byte[] packageData = getPackageData(packageSize);
+
+                    if (packageData != null) {
+                        onPackageReceived(packageData);
+                    }
+                } else { // Whole package isn't available yet
+                    this.input.reset();
+                }
             }
         } catch (IOException e) {
             disconnect();
             e.printStackTrace();
         }
     }
-    
+
     protected byte[] getPackageData(short packageSize) {
-		byte[] bytes = new byte[packageSize];
-		
-		try {
-			this.input.read(bytes, 0, packageSize);
-		} catch (IOException e) {
-			e.printStackTrace();
-			disconnect();
-			return null;
-		}
-		
-		return bytes;
-	}
-    
+        byte[] bytes = new byte[packageSize];
+
+        try {
+            this.input.read(bytes, 0, packageSize);
+        } catch (IOException e) {
+            e.printStackTrace();
+            disconnect();
+            return null;
+        }
+
+        return bytes;
+    }
+
     protected short getPackageSize() {
-		byte[] bytes = new byte[Short.BYTES];
-		
-		try {
-			this.input.read(bytes, 0, Short.BYTES);
-		} catch (IOException e) {
-			e.printStackTrace();
-			disconnect();
-			return 0;
-		}
-		
-		ByteBuffer buffer = ByteBuffer.allocate(Short.BYTES);
-		buffer.put(bytes);
-		buffer.rewind();
-		
-		return buffer.getShort();
-	}
+        byte[] bytes = new byte[Short.BYTES];
+
+        try {
+            this.input.read(bytes, 0, Short.BYTES);
+        } catch (IOException e) {
+            e.printStackTrace();
+            disconnect();
+            return 0;
+        }
+
+        ByteBuffer buffer = ByteBuffer.allocate(Short.BYTES);
+        buffer.put(bytes);
+        buffer.rewind();
+
+        return buffer.getShort();
+    }
 
     protected boolean checkIfShouldKeepAlive() {
         return this.keepAliveTo > System.currentTimeMillis();
     }
 
     protected void sendKeepAliveIfNeeded() {
-    	long currentTime = System.currentTimeMillis();
-    	
-        if(this.sendKeepAliveAt <= currentTime) {
+        long currentTime = System.currentTimeMillis();
+
+        if (this.sendKeepAliveAt <= currentTime) {
             this.sendKeepAliveAt = currentTime + this.sendKeepAliveTime;
 
             ByteBuffer buffer = ByteBuffer.allocate(2);
